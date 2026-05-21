@@ -1,0 +1,6 @@
+{
+  "name": "Number One Mobile Cash",
+  "description": "نظام إدارة وتحويل كاش وانستا باي لمحل Number One مع الربط بـ Google Sheets & Drive",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
