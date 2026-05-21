@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 interface Transaction {
-  id: number;
+  id: number | string;
   type: string;
   clientName: string;
   amount: number;
@@ -57,6 +57,7 @@ export default function App() {
   
   // Interface States
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [localHistory, setLocalHistory] = useState<Transaction[]>([]);
   const [currentTime, setCurrentTime] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
@@ -106,6 +107,58 @@ export default function App() {
       }
     }
   }, []);
+
+  const syncWithCloud = async (silent = false) => {
+    const finalApiUrl = apiUrl.trim() || ((import.meta as any).env?.VITE_GAS_API_URL as string) || '';
+    if (!finalApiUrl) {
+      if (!silent) {
+        alert('تنبيه: رابط الـ API غير مكوّن حالياً. يرجى تهيئته أولاً من الإعدادات قبل المزامنة.');
+      }
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const response = await fetch(finalApiUrl);
+      if (!response.ok) {
+        throw new Error(`خادم جوجل أرجع حالة خطأ: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data && data.status === 'success' && Array.isArray(data.transactions)) {
+        const cloudTxs: Transaction[] = data.transactions.map((t: any, idx: number) => ({
+          id: t.id || `cloud_${idx}_${Date.now()}`,
+          type: t.type || 'تحويل كاش',
+          clientName: t.clientName || 'عميل عام',
+          amount: parseFloat(t.amount) || 0,
+          phone: t.phone || '',
+          notes: t.notes || '',
+          image: t.image || '',
+          timestamp: t.timestamp || ''
+        }));
+
+        setLocalHistory(cloudTxs);
+        localStorage.setItem('numberOneTxHistory', JSON.stringify(cloudTxs));
+        if (!silent) {
+          alert(`تمت المزامنة السحابية بنجاح! تم تحميل ${cloudTxs.length} من العمليات المسجلة على جدول البيانات.`);
+        }
+      } else {
+        throw new Error(data.message || 'استجابة غير صالحة من المخدم.');
+      }
+    } catch (err: any) {
+      console.error('Error syncing with cloud:', err);
+      if (!silent) {
+        alert('حدث خطأ أثناء المزامنة السحابية: ' + err.toString() + '\nيرجى التأكد من تحديث كود Apps Script ببرنامج نمبر ون الجديد.');
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && apiUrl) {
+      syncWithCloud(true);
+    }
+  }, [isAuthenticated, apiUrl]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -715,20 +768,32 @@ export default function App() {
             {/* Local Transaction Logs list */}
             <div className="bg-dark-900 border border-dark-900/50 rounded-2xl p-5 shadow-xl flex flex-col max-h-[420px]">
               <div className="flex items-center justify-between mb-4 pb-2 border-b border-dark-950">
-                <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
                   <span>آخر العمليات النشطة</span>
                   <span className="text-[10px] text-brand-300 font-bold bg-brand-500/10 px-2 py-0.5 rounded-full border border-brand-500/15">
                     {localHistory.length} عمليات
                   </span>
                 </h3>
-                {localHistory.length > 0 && (
-                  <button 
-                    onClick={clearLocalHistory}
-                    className="text-[9.5px] text-slate-400 hover:text-red-400 font-bold transition duration-150 cursor-pointer"
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isSyncing}
+                    onClick={() => syncWithCloud(false)}
+                    className="text-slate-300 hover:text-white hover:bg-dark-800 px-2 py-1.5 rounded-lg transition duration-150 cursor-pointer flex items-center gap-1 text-[10px] font-bold border border-dark-800/80 bg-dark-950/60"
+                    title="مزامنة العمليات وتحميل من جدول بيانات جوجل سحابياً"
                   >
-                    تفريغ الأرشيف المحلي
+                    <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin text-brand-400' : 'text-slate-400'}`} />
+                    <span>{isSyncing ? 'جاري المزامنة...' : 'مزامنة سحابية 🔄'}</span>
                   </button>
-                )}
+                  {localHistory.length > 0 && (
+                    <button 
+                      onClick={clearLocalHistory}
+                      className="text-[9.5px] text-slate-400 hover:text-red-400 font-bold transition duration-150 cursor-pointer"
+                    >
+                      حذف محلي
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Scrolling list */}
@@ -1096,14 +1161,14 @@ export default function App() {
       )}
 
       {/* 🧾 OFFICIAL BLACK-ON-WHITE printable report layout configured explicitly for printers */}
-      <div id="printable-area" className="print-only" dir="rtl">
-        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid #000', paddingBottom: '12px' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: 'bold', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>Number One</h1>
-          <h2 style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', margin: '0 0 4px 0' }}>تقرير الحسابات تصفية الحركات المالية والعمليات</h2>
-          <p style={{ fontSize: '10px', color: '#444', margin: '0' }}>فرع السوليتير - تصفية حسابات نمبر ون الفورية السحابية</p>
+      <div id="printable-area" className="print-only" style={{ margin: '0 !important', padding: '0 !important' }} dir="rtl">
+        <div style={{ textAlign: 'center', marginTop: '0px', paddingTop: '0px', marginBottom: '12px', borderBottom: '2px solid #000', paddingBottom: '8px' }}>
+          <h1 style={{ fontSize: '42px', fontWeight: '900', margin: '0 0 2px 0', padding: '0', letterSpacing: '-1px', lineHeight: '1.1', color: '#000000' }}>Number One</h1>
+          <h2 style={{ fontSize: '14px', fontWeight: 'bold', color: '#000000', margin: '0 0 4px 0' }}>تقرير الحسابات تصفية الحركات المالية والعمليات</h2>
+          <p style={{ fontSize: '10px', color: '#333333', margin: '0' }}>فرع السوليتير - تصفية حسابات نمبر ون الفورية السحابية</p>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '10px', borderBottom: '1px solid #ccc', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '10px', borderBottom: '1px solid #000', paddingBottom: '6px' }}>
           <div>
             <strong>توقيت إصدار التقرير:</strong> {new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
           </div>
@@ -1115,49 +1180,49 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '15px' }}>
-          <div style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>
-            <span style={{ fontSize: '9px', display: 'block', color: '#333', fontWeight: 'bold' }}>إجمالي حجم الصادرات</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{reportTotalOut.toLocaleString('ar-EG')} ج.م</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '10px' }}>
+          <div style={{ border: '1px solid #000', padding: '5px 4px', textAlign: 'center' }}>
+            <span style={{ fontSize: '9px', display: 'block', color: '#111', fontWeight: 'bold' }}>إجمالي حجم الصادرات</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{reportTotalOut.toLocaleString('ar-EG')} ج.م</span>
           </div>
-          <div style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>
-            <span style={{ fontSize: '9px', display: 'block', color: '#333', fontWeight: 'bold' }}>إجمالي حجم الواردات</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{reportTotalIn.toLocaleString('ar-EG')} ج.م</span>
+          <div style={{ border: '1px solid #000', padding: '5px 4px', textAlign: 'center' }}>
+            <span style={{ fontSize: '9px', display: 'block', color: '#111', fontWeight: 'bold' }}>إجمالي حجم الواردات</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{reportTotalIn.toLocaleString('ar-EG')} ج.م</span>
           </div>
-          <div style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>
-            <span style={{ fontSize: '9px', display: 'block', color: '#333', fontWeight: 'bold' }}>صافي خزينة الفرع</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{reportNetFlow.toLocaleString('ar-EG')} ج.م</span>
+          <div style={{ border: '1px solid #000', padding: '5px 4px', textAlign: 'center' }}>
+            <span style={{ fontSize: '9px', display: 'block', color: '#111', fontWeight: 'bold' }}>صافي خزينة الفرع</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{reportNetFlow.toLocaleString('ar-EG')} ج.م</span>
           </div>
-          <div style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>
-            <span style={{ fontSize: '9px', display: 'block', color: '#333', fontWeight: 'bold' }}>العمليات المقيدة</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{reportTransactions.length} عملية</span>
+          <div style={{ border: '1px solid #000', padding: '5px 4px', textAlign: 'center' }}>
+            <span style={{ fontSize: '9px', display: 'block', color: '#111', fontWeight: 'bold' }}>العمليات المقيدة</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{reportTransactions.length} عملية</span>
           </div>
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px', border: '1px solid #000' }}>
           <thead>
-            <tr style={{ background: '#eaeaea', borderBottom: '2px solid #000' }}>
-              <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>التاريخ والوقت</th>
-              <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>اسم العميل</th>
-              <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>رقم المعاملة / المحفظة</th>
-              <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>نوع العملية</th>
-              <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left' }}>القيمة المالية</th>
-              <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>ملاحظات وحالة الفحص</th>
+            <tr style={{ background: '#f2f2f2', borderBottom: '2px solid #000' }}>
+              <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>التاريخ والوقت</th>
+              <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>اسم العميل</th>
+              <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>رقم المعاملة / المحفظة</th>
+              <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>نوع العملية</th>
+              <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'left' }}>القيمة المالية</th>
+              <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>ملاحظات وحالة الفحص</th>
             </tr>
           </thead>
           <tbody>
             {reportTransactions.map((tx) => {
               const isOut = tx.type.includes('تحويل');
               return (
-                <tr key={tx.id} style={{ borderBottom: '1px solid #ccc' }}>
-                  <td style={{ border: '1px solid #000', padding: '5px', fontFamily: 'monospace' }}>{tx.timestamp}</td>
-                  <td style={{ border: '1px solid #000', padding: '5px', fontWeight: 'bold' }}>{tx.clientName}</td>
-                  <td style={{ border: '1px solid #000', padding: '5px', fontFamily: 'monospace' }}>{tx.phone}</td>
-                  <td style={{ border: '1px solid #000', padding: '5px' }}>{tx.type}</td>
-                  <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'left', fontWeight: 'bold' }}>
+                <tr key={tx.id} style={{ borderBottom: '1px solid #000' }}>
+                  <td style={{ border: '1px solid #000', padding: '4px 6px', fontFamily: 'monospace' }}>{tx.timestamp}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px 6px', fontWeight: 'bold' }}>{tx.clientName}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px 6px', fontFamily: 'monospace' }}>{tx.phone}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px 6px' }}>{tx.type}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'left', fontWeight: 'bold' }}>
                     {isOut ? '-' : '+'}{tx.amount.toLocaleString('ar-EG')} ج.م
                   </td>
-                  <td style={{ border: '1px solid #000', padding: '5px' }}>{tx.notes || '---'}</td>
+                  <td style={{ border: '1px solid #000', padding: '4px 6px' }}>{tx.notes || '---'}</td>
                 </tr>
               );
             })}

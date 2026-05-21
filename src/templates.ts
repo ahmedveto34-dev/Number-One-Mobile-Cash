@@ -178,13 +178,52 @@ function doPost(e) {
   }
 }
 
-// معالجة طلبات GET لمنع الأخطاء وفحص التشغيل
+// معالجة طلبات GET لتمكين المزامنة السحابية وجلب كشف العمليات للمتصفحات الأخرى
 function doGet(e) {
-  return createJsonResponse({
-    status: "alive",
-    message: "بوابة Number One Mobile Cash تعمل بنجاح! يرجى إرسال طلب POST مع البيانات لحفظها في شيت الأرشيف.",
-    developer: "Number One Team"
-  });
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheets = ss.getSheets();
+    var allTransactions = [];
+    
+    // البحث في كافة تبويبات الأرشيف التي تبدأ باسم Archive_
+    for (var s = 0; s < sheets.length; s++) {
+      var sheet = sheets[s];
+      var name = sheet.getName();
+      
+      if (name.indexOf("Archive_") === 0) {
+        var values = sheet.getDataRange().getValues();
+        if (values.length > 1) { // يحتوي على بيانات وصف عناوين
+          // قراءة الصفوف بالتنازل التنازلي من الأحدث للأقدم
+          for (var r = values.length - 1; r >= 1; r--) {
+            var row = values[r];
+            allTransactions.push({
+              id: "cloud_" + name + "_" + r + "_" + (row[4] || "").toString().replace(/[^0-9]/g, ''),
+              timestamp: row[0] ? row[0].toString() : "",
+              type: row[1] ? row[1].toString() : "",
+              clientName: row[2] ? row[2].toString() : "",
+              amount: parseFloat(row[3]) || 0,
+              phone: row[4] ? row[4].toString().replace(/^'/, '') : "", // إزالة علامة الحماية من الأصفار اليسارية
+              notes: row[5] ? row[5].toString() : "",
+              image: row[6] ? row[6].toString() : ""
+            });
+          }
+        }
+      }
+    }
+    
+    // نرجع أحدث 100 عملية لسرعة الاستجابة وكفائة الشبكة
+    return createJsonResponse({
+      status: "success",
+      transactions: allTransactions.slice(0, 100),
+      count: allTransactions.length
+    });
+  } catch (err) {
+    return createJsonResponse({
+      status: "alive_but_empty",
+      message: "بوابة Number One تعمل بنجاح! ولكن فشل جلب الحركات: " + err.toString(),
+      developer: "Number One Team"
+    });
+  }
 }
 
 function createJsonResponse(outputObject) {
