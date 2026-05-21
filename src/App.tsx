@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { CODE_GS_TEMPLATE } from './templates';
 import { 
   ArrowDownLeft, 
   ArrowUpRight, 
@@ -439,6 +440,14 @@ export default function App() {
           
           {/* Log Out Button */}
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="bg-dark-800 hover:bg-dark-700 text-slate-300 py-2 px-3.5 rounded-xl transition text-xs border border-dark-700/80 flex items-center gap-1.5 font-bold cursor-pointer"
+              title="الإعدادات والربط السحابي"
+            >
+              <Settings className="h-3.5 w-3.5 text-brand-400 animate-spin-slow" />
+              <span>الإعدادات والربط ⚙️</span>
+            </button>
             <button 
               onClick={handleLogout}
               className="bg-red-950/40 hover:bg-red-900/60 text-red-400 py-2 px-3.5 rounded-xl transition text-xs border border-red-900/30 flex items-center gap-1.5 font-bold cursor-pointer"
@@ -898,52 +907,93 @@ export default function App() {
 
       {/* HIDDEN BACKDOOR CONFIGURATION DIALOG */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" dir="rtl font-sans">
-          <div className="bg-dark-900 border border-dark-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-dark-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Settings className="h-4 w-4 text-brand-500" />
-                <span>إعدادات السيرفر السحابي (خلفي تلقائي)</span>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in font-sans" dir="rtl">
+          <div className="bg-dark-900 border border-dark-800 rounded-3xl w-full max-w-xl p-6 md:p-8 shadow-2xl space-y-5 flex flex-col max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between pb-3 border-b border-dark-800 shrink-0">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Settings className="h-5 w-5 text-brand-500 animate-spin-slow" />
+                <span>إعدادات السيرفر السحابي ومزامنة الأجهزة</span>
               </h3>
               <button 
                 onClick={() => setShowSettings(false)}
-                className="text-slate-400 hover:text-white font-bold cursor-pointer"
+                className="text-slate-400 hover:text-white font-bold h-7 w-7 bg-dark-950 hover:bg-dark-850 border border-dark-800 text-sm rounded-full flex items-center justify-center transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="bg-dark-950 p-3 rounded-xl border border-dark-800 leading-relaxed text-slate-400">
-                <p className="font-bold text-brand-400 mb-1">⚙️ تهيئة الرابط المخفي للجهاز:</p>
-                <p>يمكنك تغيير رابط الويب التابع لمحرك جوجل في السحابة لتلقي التقارير آلياً دون الحاجة لإبراز تفاصيل اللينك للموظفين أو المشترين.</p>
+              <div className="bg-brand-500/10 border border-brand-500/20 p-4 rounded-xl leading-relaxed text-slate-300">
+                <p className="font-extrabold text-brand-400 mb-1 flex items-center gap-1.5 text-xs">
+                  <span>💡 كيف تشارك العمليات مع متصفح أو هاتف آخر؟</span>
+                </p>
+                <ol className="list-decimal list-inside space-y-1 mt-2 text-slate-300">
+                  <li>كل جهاز أو متصفح تقوم بفتحه يتطلب نسخ <b>رابط السحاب البرمجي (الـ Web App URL)</b> ووضعه في هذه الخانة ليتم الاتصال بنفس جدول البيانات.</li>
+                  <li>يجب أن يتضمن حساب Google Apps Script الخاص بك على كود المزامنة السحابية الجديد (كود <code className="bg-dark-900 px-1 py-0.5 rounded font-mono text-brand-300">doGet</code> المحدث) لتمكين المتصفحات من جلب وسحب الحركات المحفوظة فورياً.</li>
+                </ol>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-2">رابط الخادم البرمجي السحابي المباشر</label>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-slate-300">رابط الخادم البرمجي السحابي المباشر (Google Web App URL)</label>
                 <input 
                   type="url" 
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
                   placeholder="https://script.google.com/macros/s/.../exec" 
-                  className="w-full bg-dark-950 border border-dark-700/80 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-700 focus:outline-none focus:border-brand-500 text-xs font-mono tracking-normal text-left dir-ltr" 
+                  className="w-full bg-dark-950 border border-dark-750 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-700 focus:outline-none focus:border-brand-500 text-xs font-mono tracking-normal text-left dir-ltr shadow-inner" 
                 />
+                <p className="text-[10px] text-slate-400 leading-normal">
+                  * تأكد من إعادة نشر تطبيق جوجل (New Deployment) والحصول على رابط ينتهي بـ <code className="bg-dark-950 px-1.5 py-0.5 rounded text-slate-300 font-mono">/exec</code>.
+                </p>
               </div>
 
-              <div className="pt-2 flex justify-end gap-3 font-sans">
+              {/* Copy Script Section */}
+              <div className="border border-dark-800 bg-dark-950/80 p-4 rounded-2xl space-y-3.5">
+                <div className="flex items-center justify-between border-b border-dark-850 pb-2">
+                  <div className="flex flex-col">
+                    <span className="font-black text-slate-200 text-xs">كود Apps Script المطور (Code.gs) 📜</span>
+                    <span className="text-[9px] text-slate-500 mt-1">انسخ الكود بالكامل واستبدل الكود القديم بسكريبت شيت جوجل</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(CODE_GS_TEMPLATE);
+                      alert('📋 تم نسخ كود Apps Script بنجاح! يرجى لصقه داخل الماكرو أو محرّر سكريبت التابع لشيت جوجل وحفظه ثم نشر نسخة جديدة.');
+                    }}
+                    className="bg-brand-500 hover:bg-brand-600 text-dark-950 px-3.5 py-1.5 rounded-xl text-[10px] font-extrabold transition flex items-center gap-1 shadow-md shadow-brand-500/10 cursor-pointer"
+                  >
+                    <span>نسخ الكود الكامل 📋</span>
+                  </button>
+                </div>
+                
+                <div className="relative">
+                  <textarea
+                    readOnly
+                    value={CODE_GS_TEMPLATE}
+                    className="w-full h-36 bg-dark-900 border border-dark-800 rounded-xl p-3 font-mono text-[9px] text-slate-400 focus:outline-none resize-none custom-scrollbar"
+                    title="محتوى كود Apps Script المتكامل"
+                  />
+                </div>
+                
+                <p className="text-[10px] text-slate-400 leading-normal bg-dark-900 p-2.5 rounded-lg border border-dark-850/60">
+                  ℹ️ <b>ملاحظة فائقة الأهمية:</b> بعد لصق الكود، يرجى الضغط على <b>Deploy (نشر) ثم New Deployment</b>، وتغيير الإعدادات ليكون لـ <b>Me</b> والـ Access لـ <b>Anyone</b>، ثم نسخ الرابط ووضعه أعلاه.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3 font-sans shrink-0">
                 <button 
                   type="button" 
                   onClick={() => setShowSettings(false)} 
-                  className="bg-dark-950 hover:bg-dark-800 text-slate-400 hover:text-white px-4 py-2.5 rounded-xl font-bold transition cursor-pointer"
+                  className="bg-dark-950 hover:bg-dark-850 text-slate-400 hover:text-white px-5 py-2.5 rounded-xl font-bold transition border border-dark-805 cursor-pointer text-xs"
                 >
                   إلغاء
                 </button>
                 <button 
                   type="button" 
                   onClick={handleSaveSettings} 
-                  className="bg-brand-500 hover:bg-brand-600 text-dark-950 px-5 py-2.5 rounded-xl font-bold transition cursor-pointer"
+                  className="bg-brand-500 hover:bg-brand-600 text-dark-950 px-6 py-2.5 rounded-xl font-bold transition shadow-lg shadow-brand-500/10 cursor-pointer text-xs"
                 >
-                  حفظ 💾
+                  حفظ وتطبيق التكوين 💾
                 </button>
               </div>
             </div>
